@@ -82,4 +82,4 @@ erDiagram
   USER ||--o{ MESSAGE : sends
   CHAT ||--o{ CHATMEMBER : has
   USER ||--o{ CHATMEMBER : joins
-```md
+```
