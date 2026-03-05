@@ -61,3 +61,23 @@ Prisma ORM을 사용하여 PostgreSQL과 연결됩니다.
 - Chat
 - Message
 - ChatMember
+
+## Architecture Diagram
+
+```mermaid
+graph TD
+
+Client[Client Web / Mobile]
+
+API[NestJS API Server]
+
+Socket[Socket.IO Gateway]
+
+DB[(PostgreSQL)]
+
+Client --> API
+Client --> Socket
+
+API --> DB
+Socket --> DB
+```
