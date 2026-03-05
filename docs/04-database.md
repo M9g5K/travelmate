@@ -68,3 +68,18 @@ ChatMember
 
 - 채팅 메시지 pagination
 - 채팅 inbox 조회
+
+## ERD Diagram
+
+```mermaid
+erDiagram
+  USER ||--o{ REQUEST : creates
+  REQUEST ||--o{ MATCH : has
+  USER ||--o{ MATCH : traveler
+  USER ||--o{ MATCH : local
+  MATCH ||--|| CHAT : creates
+  CHAT ||--o{ MESSAGE : contains
+  USER ||--o{ MESSAGE : sends
+  CHAT ||--o{ CHATMEMBER : has
+  USER ||--o{ CHATMEMBER : joins
+```
