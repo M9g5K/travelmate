@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: travelmate_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: travelmate
+      POSTGRES_PASSWORD: travelmate_pw
+      POSTGRES_DB: travelmate_dev
+    ports:
+      - "5434:5432"
+    volumes:
+      - travelmate_pgdata:/var/lib/postgresql/data
+
+volumes:
+  travelmate_pgdata:
