@@ -2,126 +2,165 @@
 
 import { api } from '@/lib/api';
 import { token } from '@/lib/token';
-import { io, Socket } from 'socket.io-client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import TopNav from '@/components/top-nav';
 
-type Msg = { id: string; senderId: string; content: string; createdAt: string };
+type Msg = {
+  id: string;
+  senderId: string;
+  content: string;
+  createdAt: string;
+};
 
 export default function ChatRoomPage() {
-  const { chatId } = useParams<{ chatId: string }>();
-  const r = useRouter();
+  const params = useParams();
+  const chatId = String(params.chatId);
+  const router = useRouter();
+
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState('');
-  const [typing, setTyping] = useState<string | null>(null);
-  const sockRef = useRef<Socket | null>(null);
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  const wsUrl = useMemo(() => process.env.NEXT_PUBLIC_WS_URL!, []);
-
-  // 로그인 체크
   useEffect(() => {
-    if (!token.get()) r.push('/login');
-  }, [r]);
+    if (!token.get()) router.push('/login');
+  }, [router]);
 
-  // 메시지 초기 로드
-  useEffect(() => {
-    (async () => {
+  async function loadMessages() {
+    try {
       const res = await api.get(`/chats/${chatId}/messages?take=50`);
       const list = res.data?.data ?? [];
       setMsgs(list);
 
       const last = list.slice(-1)[0];
-      await api.post(`/chats/${chatId}/seen`, { lastReadMsgId: last?.id });
-    })();
-  }, [chatId]);
-
-  // socket 연결
-  useEffect(() => {
-    const t = token.get();
-    if (!t) return;
-
-    const s = io(wsUrl, {
-      transports: ['websocket'],
-      auth: { token: t },
-    });
-
-    sockRef.current = s;
-
-    s.on('connect', () => {
-      s.emit('joinChat', { chatId });
-    });
-
-    s.on('newMessage', (m: any) => {
-      setMsgs((prev) => [...prev, m]);
-      s.emit('messages:seen', { chatId, lastReadMsgId: m.id });
-    });
-
-    s.on('typing', (p: any) => {
-      if (p?.chatId !== chatId) return;
-      setTyping(p.isTyping ? `${p.userId} typing...` : null);
-    });
-
-    return () => {
-      s.disconnect();
-      sockRef.current = null;
-    };
-  }, [chatId, wsUrl]);
-
-  function send() {
-    const s = sockRef.current;
-    if (!s) return;
-
-    const content = text.trim();
-    if (!content) return;
-
-    s.emit('sendMessage', { chatId, content });
-    setText('');
+      if (last?.id) {
+        await api.post(`/chats/${chatId}/seen`, { lastReadMsgId: last.id });
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   useEffect(() => {
-    const s = sockRef.current;
-    if (!s) return;
+    loadMessages();
 
-    if (text.length > 0) s.emit('typing:start', { chatId });
-    const t = setTimeout(() => s.emit('typing:stop', { chatId }), 600);
+    const interval = setInterval(() => {
+      loadMessages();
+    }, 2000);
 
-    return () => clearTimeout(t);
-  }, [text, chatId]);
+    return () => clearInterval(interval);
+  }, [chatId]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [msgs]);
+
+  async function send() {
+    const content = text.trim();
+    if (!content || loading) return;
+
+    try {
+      setLoading(true);
+      await api.post(`/chats/${chatId}/messages`, { content });
+      setText('');
+      await loadMessages();
+    } catch (e) {
+      console.error(e);
+      alert('메시지 전송 실패');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function formatTime(value: string) {
+    return new Date(value).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
 
   return (
-    <main style={{ padding: 24 }}>
-      <button onClick={() => r.push('/chats')}>← Back</button>
+    <main className="min-h-screen bg-slate-50">
+      <TopNav />
 
-      <h1 style={{ marginTop: 12 }}>Chat Room</h1>
+      <div className="mx-auto flex h-[calc(100vh-88px)] max-w-5xl flex-col px-4 py-6">
+        <header className="mb-4 flex items-center justify-between rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/chats')}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
+            >
+              ← Back
+            </button>
 
-      {typing && <p style={{ opacity: 0.7 }}>{typing}</p>}
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+              C
+            </div>
 
-      <div style={{
-        border: '1px solid #ddd',
-        borderRadius: 8,
-        padding: 12,
-        height: 360,
-        overflow: 'auto'
-      }}>
-        {msgs.map((m) => (
-          <div key={m.id} style={{ padding: '6px 0' }}>
-            <span style={{ opacity: 0.6, marginRight: 8 }}>
-              {new Date(m.createdAt).toLocaleTimeString()}
-            </span>
-            <span>{m.content}</span>
+            <div>
+              <h1 className="text-base font-semibold text-slate-900">Conversation</h1>
+              <p className="text-sm text-slate-500">TravelMate chat</p>
+            </div>
           </div>
-        ))}
-      </div>
+        </header>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Type a message..."
-          style={{ flex: 1 }}
-        />
+        <div className="flex-1 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex h-full flex-col">
+            <div className="flex-1 overflow-y-auto bg-slate-50/70 px-4 py-5">
+              <div className="space-y-4">
+                {msgs.map((m, idx) => {
+                  const mine = idx % 2 === 0;
 
-        <button onClick={send}>Send</button>
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex ${mine ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-[78%] ${mine ? 'items-end' : 'items-start'} flex flex-col`}>
+                        <div
+                          className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                            mine
+                              ? 'rounded-br-md bg-slate-900 text-white'
+                              : 'rounded-bl-md border border-slate-200 bg-white text-slate-800'
+                          }`}
+                        >
+                          <p className="leading-6">{m.content}</p>
+                        </div>
+
+                        <span className="mt-1 px-1 text-[11px] text-slate-400">
+                          {formatTime(m.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div ref={bottomRef} />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 bg-white px-4 py-4">
+              <div className="flex items-end gap-3">
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Type a message..."
+                  rows={1}
+                  className="max-h-40 min-h-[52px] flex-1 resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                />
+
+                <button
+                  onClick={send}
+                  disabled={loading}
+                  className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading ? 'Sending...' : 'Send'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   );

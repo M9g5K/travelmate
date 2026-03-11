@@ -8,6 +8,8 @@ import { RequestsModule } from './requests/requests.module';
 import { MatchesModule } from './matches/matches.module';
 import { ChatsModule } from './chats/chats.module';
 
+import { TestGateway } from './test.gateway';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
@@ -19,5 +21,6 @@ import { ChatsModule } from './chats/chats.module';
     MatchesModule,
     ChatsModule,
   ],
+  providers: [TestGateway],
 })
 export class AppModule {}

@@ -25,15 +25,7 @@ async function bootstrap() {
     .setTitle('Travel Local API')
     .setDescription('외국인 여행자 × 한국 로컬 단계형 연결 서비스 API')
     .setVersion('0.1.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        in: 'header',
-      },
-      'access-token',
-    )
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -41,6 +33,7 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
+
   console.log(`🚀 API listening on http://localhost:${port}`);
 }
 
