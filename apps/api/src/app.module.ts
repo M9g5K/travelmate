@@ -7,6 +7,8 @@ import { UsersModule } from './users/users.module';
 import { RequestsModule } from './requests/requests.module';
 import { MatchesModule } from './matches/matches.module';
 import { ChatsModule } from './chats/chats.module';
+import { ReportsModule } from './reports/reports.module';
+import { BlocksModule } from './blocks/blocks.module';
 
 import { TestGateway } from './test.gateway';
 
@@ -20,6 +22,8 @@ import { TestGateway } from './test.gateway';
     RequestsModule,
     MatchesModule,
     ChatsModule,
+    ReportsModule,
+    BlocksModule,
   ],
   providers: [TestGateway],
 })

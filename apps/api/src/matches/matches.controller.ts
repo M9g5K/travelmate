@@ -1,24 +1,24 @@
-import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt.guard';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { MatchesService } from './matches.service';
+import { JwtAuthGuard } from '../auth/jwt.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 
-@ApiTags('Matches')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('matches')
+@UseGuards(JwtAuthGuard)
 export class MatchesController {
-  constructor(private matches: MatchesService) {}
+  constructor(private readonly matchesService: MatchesService) {}
 
   @Get('mine')
-  async mine(@Req() req: any) {
-    const list = await this.matches.listMine(req.user.userId);
-    return { ok: true, data: list };
+  async getMine(@CurrentUser() user: any) {
+    const matches = await this.matchesService.getMine(user.userId);
+
+    return {
+      data: matches,
+    };
   }
 
   @Get(':id')
-  async detail(@Req() req: any, @Param('id') id: string) {
-    const match = await this.matches.getByIdForUser(id, req.user.userId);
-    return { ok: true, data: match };
+  async getById(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.matchesService.getById(id, user.userId);
   }
 }

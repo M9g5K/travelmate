@@ -9,6 +9,8 @@ const menus = [
   { href: '/requests/mine', label: 'My Requests' },
   { href: '/matches', label: 'Matches' },
   { href: '/chats', label: 'Chats' },
+  { href: '/reports', label: 'Reports' },
+  { href: '/blocks', label: 'Blocks' },
   { href: '/me', label: 'Profile' },
 ];
 

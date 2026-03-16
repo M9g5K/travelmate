@@ -20,17 +20,29 @@ model User {
   type             String
   nickname         String
   languages        String[]
+
+  country          String?
+  bio              String?
+  profileImageUrl  String?
+
   refreshTokenHash String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
   requests Request[]
-    likes    Like[]
+  likes    Like[]
 
-    travelerMatches Match[] @relation("TravelerMatches")
-    localMatches    Match[] @relation("LocalMatches")
+  travelerMatches Match[] @relation("TravelerMatches")
+  localMatches    Match[] @relation("LocalMatches")
 
-    messages Message[]
-    chatMembers ChatMember[]
+  messages Message[]
+  chatMembers ChatMember[]
+
+  reportsSent     Report[] @relation("ReportsSent")
+  reportsReceived Report[] @relation("ReportsReceived")
+
+  blocksSent     Block[] @relation("BlocksSent")
+  blocksReceived Block[] @relation("BlocksReceived")
 }
 
 enum RequestStatus {
@@ -153,4 +165,29 @@ model ChatMember {
   @@unique([chatId, userId])
   @@index([chatId])
   @@index([userId])
+}
+
+model Report {
+  id           String   @id @default(uuid())
+  reporterId   String
+  targetUserId String
+  chatId       String?
+  reason       String
+  detail       String?
+  createdAt    DateTime @default(now())
+
+  reporter     User     @relation("ReportsSent", fields: [reporterId], references: [id])
+  targetUser   User     @relation("ReportsReceived", fields: [targetUserId], references: [id])
+}
+
+model Block {
+  id            String   @id @default(uuid())
+  blockerId     String
+  blockedUserId String
+  createdAt     DateTime @default(now())
+
+  blocker     User @relation("BlocksSent", fields: [blockerId], references: [id])
+  blockedUser User @relation("BlocksReceived", fields: [blockedUserId], references: [id])
+
+  @@unique([blockerId, blockedUserId])
 }
