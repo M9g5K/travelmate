@@ -30,6 +30,14 @@ export default function MatchesPage() {
   const [items, setItems] = useState<MatchItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewTargetId, setReviewTargetId] = useState<string | null>(null);
+  const [reviewTargetName, setReviewTargetName] = useState('');
+  const [reviewMatchId, setReviewMatchId] = useState<string | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
   useEffect(() => {
     loadMatches();
   }, []);
@@ -39,11 +47,15 @@ export default function MatchesPage() {
       const res = await api.get('/matches/mine');
       console.log('matches response:', res.data);
 
-      const payload = res.data?.data ?? res.data;
-      const list = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.items)
-        ? payload.items
+      const raw = res.data;
+      const list = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.data)
+        ? raw.data
+        : Array.isArray(raw?.items)
+        ? raw.items
+        : Array.isArray(raw?.data?.items)
+        ? raw.data.items
         : [];
 
       setItems(list);
@@ -62,6 +74,54 @@ export default function MatchesPage() {
     }
 
     router.push('/chats');
+  }
+
+  function openReview(match: MatchItem) {
+    const person = match.counterpart;
+
+    if (!person?.id) {
+      alert('User info missing');
+      return;
+    }
+
+    setReviewTargetId(person.id);
+    setReviewTargetName(person.nickname ?? 'User');
+    setReviewMatchId(match.id);
+    setRating(5);
+    setComment('');
+    setReviewOpen(true);
+  }
+
+  async function submitReview() {
+    if (!reviewTargetId || !reviewMatchId) {
+      alert('Invalid review data');
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+
+      await api.post('/reviews', {
+        targetUserId: reviewTargetId,
+        matchId: reviewMatchId,
+        rating,
+        comment,
+      });
+
+      alert('Review submitted!');
+      setReviewOpen(false);
+    } catch (e: any) {
+      console.error(e);
+
+      const msg =
+        e?.response?.data?.message
+          ? JSON.stringify(e.response.data.message)
+          : 'Failed to submit review';
+
+      alert(msg);
+    } finally {
+      setSubmittingReview(false);
+    }
   }
 
   if (loading) {
@@ -164,12 +224,21 @@ export default function MatchesPage() {
                     )}
                   </div>
 
-                  <button
-                    onClick={() => openChat(match)}
-                    className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800"
-                  >
-                    Open Chat
-                  </button>
+                  <div className="shrink-0">
+                    <button
+                      onClick={() => openChat(match)}
+                      className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800"
+                    >
+                      Open Chat
+                    </button>
+
+                    <button
+                      onClick={() => openReview(match)}
+                      className="mt-3 block rounded-xl border border-yellow-300 px-3 py-2 text-xs font-medium text-yellow-700 hover:bg-yellow-50"
+                    >
+                      ⭐ Write Review
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -185,6 +254,69 @@ export default function MatchesPage() {
           )}
         </div>
       </div>
+
+      {reviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+            <h2 className="text-xl font-semibold text-slate-900">
+              Write Review
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Review {reviewTargetName}
+            </p>
+
+            <div className="mt-4">
+              <label className="text-sm font-medium text-slate-700">
+                Rating
+              </label>
+
+              <select
+                value={rating}
+                onChange={(e) => setRating(Number(e.target.value))}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3"
+              >
+                <option value={5}>⭐⭐⭐⭐⭐</option>
+                <option value={4}>⭐⭐⭐⭐</option>
+                <option value={3}>⭐⭐⭐</option>
+                <option value={2}>⭐⭐</option>
+                <option value={1}>⭐</option>
+              </select>
+            </div>
+
+            <div className="mt-4">
+              <label className="text-sm font-medium text-slate-700">
+                Comment
+              </label>
+
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={4}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3"
+                placeholder="Share your experience..."
+              />
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setReviewOpen(false)}
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={submitReview}
+                disabled={submittingReview}
+                className="rounded-2xl bg-yellow-500 px-4 py-3 text-sm font-medium text-white hover:bg-yellow-600 disabled:opacity-50"
+              >
+                {submittingReview ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

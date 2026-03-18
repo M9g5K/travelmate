@@ -7,18 +7,23 @@ import TopNav from '@/components/top-nav';
 
 const cards = [
   {
+    title: 'Create Request',
+    description: 'Create a new travel request and get connected with locals.',
+    href: '/requests/new',
+  },
+  {
     title: 'Browse Requests',
-    description: 'See travel requests from travelers and like the ones you can help with.',
+    description: 'See travel requests from travelers and help with matching.',
     href: '/requests',
   },
   {
     title: 'My Requests',
-    description: 'Manage the requests you created and check who is interested.',
+    description: 'Manage your travel requests and check likes.',
     href: '/requests/mine',
   },
   {
     title: 'Matches',
-    description: 'View people you matched with and continue the conversation.',
+    description: 'See who you matched with and continue the conversation.',
     href: '/matches',
   },
   {
@@ -28,7 +33,7 @@ const cards = [
   },
   {
     title: 'Profile',
-    description: 'Check your account information and current role.',
+    description: 'Edit your profile, country, languages, bio, and image.',
     href: '/me',
   },
 ];
@@ -46,9 +51,9 @@ export default function HomePage() {
     <main className="min-h-screen bg-slate-50">
       <TopNav />
 
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <div className="mx-auto max-w-6xl px-6 py-10">
         <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="max-w-2xl">
+          <div className="max-w-3xl">
             <div className="mb-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
               TravelMate Dashboard
             </div>
@@ -58,8 +63,8 @@ export default function HomePage() {
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              TravelMate helps travelers create requests, connect with locals,
-              accept matches, and continue conversations through chat.
+              Create travel requests, browse local matches, chat safely, manage
+              reports and blocks, and build trust with reviews.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -71,10 +76,10 @@ export default function HomePage() {
               </button>
 
               <button
-                onClick={() => router.push('/requests')}
+                onClick={() => router.push('/matches')}
                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
               >
-                Browse Requests
+                View Matches
               </button>
             </div>
           </div>
@@ -93,7 +98,6 @@ export default function HomePage() {
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 {card.description}
               </p>
-
               <div className="mt-4 text-sm font-medium text-slate-900">
                 Open →
               </div>

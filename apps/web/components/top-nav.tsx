@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { token } from '@/lib/token';
 
 const menus = [
+  { href: '/', label: 'Home' },
   { href: '/requests', label: 'Requests' },
   { href: '/requests/mine', label: 'My Requests' },
   { href: '/matches', label: 'Matches' },
@@ -19,9 +20,9 @@ export default function TopNav() {
   const router = useRouter();
 
   function isActive(href: string) {
-    if (href === '/requests' && pathname === '/requests') return true;
-    if (href !== '/requests' && pathname.startsWith(href)) return true;
-    return false;
+    if (href === '/') return pathname === '/';
+    if (href === '/requests') return pathname === '/requests';
+    return pathname.startsWith(href);
   }
 
   function logout() {
@@ -31,8 +32,8 @@ export default function TopNav() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <Link href="/requests" className="text-lg font-semibold text-slate-900">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <Link href="/" className="text-lg font-semibold text-slate-900">
           TravelMate
         </Link>
 
@@ -60,7 +61,7 @@ export default function TopNav() {
         </button>
       </div>
 
-      <div className="mx-auto flex max-w-5xl gap-2 overflow-x-auto px-6 pb-4 md:hidden">
+      <div className="mx-auto flex max-w-6xl gap-2 overflow-x-auto px-6 pb-4 md:hidden">
         {menus.map((menu) => (
           <Link
             key={menu.href}

@@ -9,6 +9,7 @@ import { MatchesModule } from './matches/matches.module';
 import { ChatsModule } from './chats/chats.module';
 import { ReportsModule } from './reports/reports.module';
 import { BlocksModule } from './blocks/blocks.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 import { TestGateway } from './test.gateway';
 
@@ -24,6 +25,7 @@ import { TestGateway } from './test.gateway';
     ChatsModule,
     ReportsModule,
     BlocksModule,
+    ReviewsModule,
   ],
   providers: [TestGateway],
 })
