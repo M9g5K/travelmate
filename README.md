@@ -101,10 +101,11 @@ API
 
 기능
 
-- 채팅방 생성
+- 채팅방 목록 조회 (Inbox)
 - 메시지 전송
-- 메시지 조회
-- 읽음 처리
+- 메시지 조회 (Pagination)
+- 읽음 처리 (Read Receipt)
+- 특정 메시지 이후 조회 (Sync)
 
 API
 - GET /chats/mine
@@ -143,11 +144,22 @@ API
 
 ## 🚫 Block System
 
-유저 차단 기능
+기능
+
+- 유저 차단 / 차단 해제
+- 차단된 유저 자동 필터링
+
+차단 시 동작
+
+- 요청 목록에서 해당 유저 숨김
+- 채팅 접근 차단
+- 메시지 전송 제한
+- 좋아요 및 매칭 제한
 
 API
 - POST /blocks
 - GET /blocks
+- DELETE /blocks/:blockedUserId
 
 ---
 
@@ -166,6 +178,16 @@ API
 ### Database
 
 - PostgreSQL
+
+---
+
+# 📊 Current Status
+
+- Core features completed (Auth, Requests, Matches, Chats)
+- Block system with filtering implemented
+- Review & Report system implemented
+- Frontend UX completed
+- MVP ready for deployment
 
 ---
 
@@ -250,11 +272,11 @@ Recommended testing flow
 
 # 📌 Future Improvements
 
-- User profile page (`/users/[id]`)
-- Display average review rating
-- Blocked user automatic filtering
+- Real-time chat (WebSocket)
+- Admin dashboard (report management)
 - Push notifications
-- Translation feature
+- Multi-language translation
+- Mobile app deployment
 
 ---
 
