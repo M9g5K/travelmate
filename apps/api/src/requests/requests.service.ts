@@ -6,10 +6,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AcceptLikeDto, CreateRequestDto } from './dto';
+import { BlocksService } from '../blocks/blocks.service';
 
 @Injectable()
 export class RequestsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private blocksService: BlocksService,
+  ) {}
 
   create(travelerId: string, dto: CreateRequestDto) {
     return this.prisma.request.create({
@@ -34,9 +38,20 @@ export class RequestsService {
     });
   }
 
-  listActiveForLocals() {
+  async listActiveForLocals(localId: string) {
+    const hiddenUserIds = await this.blocksService.getHiddenUserIds(localId);
+
     return this.prisma.request.findMany({
-      where: { status: 'ACTIVE' },
+      where: {
+        status: 'ACTIVE',
+        ...(hiddenUserIds.length > 0
+          ? {
+              travelerId: {
+                notIn: hiddenUserIds,
+              },
+            }
+          : {}),
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         traveler: { select: { id: true, nickname: true, type: true } },
@@ -49,10 +64,23 @@ export class RequestsService {
     if (!req) throw new NotFoundException('Request not found');
     if (req.travelerId !== travelerId) throw new ForbiddenException('Not your request');
 
+    const hiddenUserIds = await this.blocksService.getHiddenUserIds(travelerId);
+
     return this.prisma.like.findMany({
-      where: { requestId },
+      where: {
+        requestId,
+        ...(hiddenUserIds.length > 0
+          ? {
+              localId: {
+                notIn: hiddenUserIds,
+              },
+            }
+          : {}),
+      },
       orderBy: { createdAt: 'desc' },
-      include: { local: { select: { id: true, nickname: true, type: true } } },
+      include: {
+        local: { select: { id: true, nickname: true, type: true } },
+      },
     });
   }
 
@@ -60,6 +88,11 @@ export class RequestsService {
     const req = await this.prisma.request.findUnique({ where: { id: requestId } });
     if (!req) throw new NotFoundException('Request not found');
     if (req.status !== 'ACTIVE') throw new BadRequestException('Request is not active');
+
+    const hiddenUserIds = await this.blocksService.getHiddenUserIds(localId);
+    if (hiddenUserIds.includes(req.travelerId)) {
+      throw new ForbiddenException('Request not available');
+    }
 
     return this.prisma.like.upsert({
       where: { requestId_localId: { requestId, localId } },
@@ -77,9 +110,19 @@ export class RequestsService {
       if (req.status !== 'ACTIVE') throw new BadRequestException('Request is not active');
 
       const like = await tx.like.findUnique({ where: { id: dto.likeId } });
-      if (!like || like.requestId !== requestId) throw new NotFoundException('Like not found');
+      if (!like || like.requestId !== requestId) {
+        throw new NotFoundException('Like not found');
+      }
 
-      await tx.like.update({ where: { id: like.id }, data: { status: 'ACCEPTED' } });
+      const hiddenUserIds = await this.blocksService.getHiddenUserIds(travelerId);
+      if (hiddenUserIds.includes(like.localId)) {
+        throw new ForbiddenException('Cannot accept blocked user');
+      }
+
+      await tx.like.update({
+        where: { id: like.id },
+        data: { status: 'ACCEPTED' },
+      });
 
       await tx.like.updateMany({
         where: { requestId, id: { not: like.id } },
@@ -100,7 +143,9 @@ export class RequestsService {
         },
       });
 
-      const chat = await tx.chat.create({ data: { matchId: match.id } });
+      const chat = await tx.chat.create({
+        data: { matchId: match.id },
+      });
 
       return { match, chat };
     });

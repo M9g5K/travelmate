@@ -4,10 +4,35 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BlocksService } from '../blocks/blocks.service';
 
 @Injectable()
 export class ChatsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private blocksService: BlocksService,
+  ) {}
+
+  private async ensureNotBlocked(chatId: string, userId: string) {
+    const hiddenUserIds = await this.blocksService.getHiddenUserIds(userId);
+    if (hiddenUserIds.length === 0) return;
+
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { match: true },
+    });
+
+    if (!chat) throw new NotFoundException('Chat not found');
+
+    const counterpartId =
+      chat.match.travelerId === userId
+        ? chat.match.localId
+        : chat.match.travelerId;
+
+    if (hiddenUserIds.includes(counterpartId)) {
+      throw new ForbiddenException('Blocked chat');
+    }
+  }
 
   /**
    * ✅ Chat 멤버 검증 (traveler/local만 접근 가능)
@@ -24,6 +49,8 @@ export class ChatsService {
     if (travelerId !== userId && localId !== userId) {
       throw new ForbiddenException('Not your chat');
     }
+
+    await this.ensureNotBlocked(chatId, userId);
 
     return chat;
   }
@@ -46,6 +73,7 @@ export class ChatsService {
    */
   async sendMessage(chatId: string, senderId: string, content: string) {
     await this.ensureChatMember(chatId, senderId);
+    await this.ensureNotBlocked(chatId, senderId);
 
     return this.prisma.message.create({
       data: { chatId, senderId, content },
@@ -58,8 +86,14 @@ export class ChatsService {
    * - take: 1~50
    * - cursor: 이전 페이지 마지막 message.id
    */
-  async listMessages(chatId: string, userId: string, take = 30, cursor?: string) {
+  async listMessages(
+    chatId: string,
+    userId: string,
+    take = 30,
+    cursor?: string,
+  ) {
     await this.ensureChatMember(chatId, userId);
+    await this.ensureNotBlocked(chatId, userId);
 
     const safeTake = Math.min(Math.max(take, 1), 50);
 
@@ -82,10 +116,18 @@ export class ChatsService {
    * ✅ missed sync: after messageId 기준으로 이후 메시지 가져오기
    * GET /chats/:chatId/messages/after?after=<messageId>&take=50
    */
-  async listMessagesAfter(chatId: string, userId: string, afterMessageId: string, take = 50) {
+  async listMessagesAfter(
+    chatId: string,
+    userId: string,
+    afterMessageId: string,
+    take = 50,
+  ) {
     await this.ensureChatMember(chatId, userId);
+    await this.ensureNotBlocked(chatId, userId);
 
-    const after = await this.prisma.message.findUnique({ where: { id: afterMessageId } });
+    const after = await this.prisma.message.findUnique({
+      where: { id: afterMessageId },
+    });
     if (!after || after.chatId !== chatId) {
       return { data: [], nextCursor: null };
     }
@@ -111,6 +153,7 @@ export class ChatsService {
    */
   async markSeen(chatId: string, userId: string, lastReadMsgId?: string) {
     await this.ensureChatMember(chatId, userId);
+    await this.ensureNotBlocked(chatId, userId);
 
     const member = await this.prisma.chatMember.upsert({
       where: { chatId_userId: { chatId, userId } },
@@ -135,6 +178,7 @@ export class ChatsService {
    * - DISTINCT ON + CTE 사용
    */
   async listMyChats(userId: string, take = 20) {
+    const hiddenUserIds = await this.blocksService.getHiddenUserIds(userId);
     const safeTake = Math.min(Math.max(take, 1), 50);
 
     const rows = await this.prisma.$queryRaw<any[]>`
@@ -207,35 +251,37 @@ export class ChatsService {
       ORDER BY COALESCE(lm."createdAt", ch."createdAt") DESC
     `;
 
-    return rows.map((r) => ({
-      chatId: r.chatId,
-      matchId: r.matchId,
-      request: {
-        id: r.requestId,
-        city: r.requestCity,
-        startDate: r.requestStartDate,
-        endDate: r.requestEndDate,
-        tags: r.requestTags,
-        status: r.requestStatus,
-      },
-      counterpart: {
-        id: r.counterpartId,
-        nickname: r.counterpartNickname,
-        type: r.counterpartType,
-      },
-      lastMessage: r.lastMessageId
-        ? {
-            id: r.lastMessageId,
-            chatId: r.chatId,
-            senderId: r.lastMessageSenderId,
-            content: r.lastMessageContent,
-            createdAt: r.lastMessageCreatedAt,
-          }
-        : null,
-      unreadCount: r.unreadCount,
-      lastReadAt: r.lastReadAt,
-      lastReadMsgId: r.lastReadMsgId,
-    }));
+    return rows
+      .filter((r) => !hiddenUserIds.includes(r.counterpartId))
+      .map((r) => ({
+        chatId: r.chatId,
+        matchId: r.matchId,
+        request: {
+          id: r.requestId,
+          city: r.requestCity,
+          startDate: r.requestStartDate,
+          endDate: r.requestEndDate,
+          tags: r.requestTags,
+          status: r.requestStatus,
+        },
+        counterpart: {
+          id: r.counterpartId,
+          nickname: r.counterpartNickname,
+          type: r.counterpartType,
+        },
+        lastMessage: r.lastMessageId
+          ? {
+              id: r.lastMessageId,
+              chatId: r.chatId,
+              senderId: r.lastMessageSenderId,
+              content: r.lastMessageContent,
+              createdAt: r.lastMessageCreatedAt,
+            }
+          : null,
+        unreadCount: r.unreadCount,
+        lastReadAt: r.lastReadAt,
+        lastReadMsgId: r.lastReadMsgId,
+      }));
   }
 
   /**
@@ -247,6 +293,7 @@ export class ChatsService {
   async getChatDetail(chatId: string, userId: string) {
     // 권한 체크
     await this.ensureChatMember(chatId, userId);
+    await this.ensureNotBlocked(chatId, userId);
 
     const chat = await this.prisma.chat.findUnique({
       where: { id: chatId },
@@ -273,7 +320,8 @@ export class ChatsService {
 
     const match = chat.match;
 
-    const counterpart = match.travelerId === userId ? match.local : match.traveler;
+    const counterpart =
+      match.travelerId === userId ? match.local : match.traveler;
 
     const myMember = chat.members.find((m) => m.userId === userId) ?? null;
     const peerMember = chat.members.find((m) => m.userId !== userId) ?? null;
@@ -305,7 +353,12 @@ export class ChatsService {
             lastReadMsgId: peerMember.lastReadMsgId ?? null,
             updatedAt: peerMember.updatedAt,
           }
-        : { userId: null, lastReadAt: null, lastReadMsgId: null, updatedAt: null },
+        : {
+            userId: null,
+            lastReadAt: null,
+            lastReadMsgId: null,
+            updatedAt: null,
+          },
     };
   }
 }

@@ -76,4 +76,59 @@ export class BlocksService {
       },
     });
   }
+
+  async getHiddenUserIds(userId: string) {
+    const blocks = await this.prisma.block.findMany({
+      where: {
+        OR: [{ blockerId: userId }, { blockedUserId: userId }],
+      },
+      select: {
+        blockerId: true,
+        blockedUserId: true,
+      },
+    });
+
+    const hiddenIds = new Set<string>();
+
+    for (const block of blocks) {
+      if (block.blockerId === userId) {
+        hiddenIds.add(block.blockedUserId);
+      }
+      if (block.blockedUserId === userId) {
+        hiddenIds.add(block.blockerId);
+      }
+    }
+
+    return [...hiddenIds];
+  }
+
+  async remove(blockerId: string, blockedUserId: string) {
+    const existing = await this.prisma.block.findUnique({
+      where: {
+        blockerId_blockedUserId: {
+          blockerId,
+          blockedUserId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Block not found');
+    }
+
+    return this.prisma.block.delete({
+      where: {
+        blockerId_blockedUserId: {
+          blockerId,
+          blockedUserId,
+        },
+      },
+      select: {
+        id: true,
+        blockerId: true,
+        blockedUserId: true,
+      },
+    });
+  }
 }

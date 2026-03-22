@@ -59,6 +59,15 @@ export default function RequestLikesPage() {
     }
   }
 
+  function openUserProfile(userId?: string) {
+    if (!userId) {
+      alert('User info missing');
+      return;
+    }
+
+    router.push(`/users/${userId}`);
+  }
+
   async function accept(likeId: string) {
     try {
       setAcceptingId(likeId);
@@ -123,22 +132,34 @@ export default function RequestLikesPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-4">
-                      {profileImageUrl ? (
-                        <img
-                          src={profileImageUrl}
-                          alt="profile"
-                          className="h-14 w-14 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-base font-semibold text-white">
-                          {nickname.slice(0, 1).toUpperCase()}
-                        </div>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => openUserProfile(person?.id)}
+                        className="shrink-0"
+                      >
+                        {profileImageUrl ? (
+                          <img
+                            src={profileImageUrl}
+                            alt="profile"
+                            className="h-14 w-14 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-base font-semibold text-white">
+                            {nickname.slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
+                      </button>
 
                       <div className="min-w-0">
-                        <h2 className="truncate text-lg font-semibold text-slate-900">
-                          {nickname}
-                        </h2>
+                        <button
+                          type="button"
+                          onClick={() => openUserProfile(person?.id)}
+                          className="text-left"
+                        >
+                          <h2 className="truncate text-lg font-semibold text-slate-900 hover:underline">
+                            {nickname}
+                          </h2>
+                        </button>
 
                         <p className="mt-1 text-sm text-slate-500">
                           {type}

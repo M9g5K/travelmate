@@ -25,9 +25,17 @@ type MatchItem = {
   chatId?: string | null;
 };
 
+type BlockItem = {
+  id: string;
+  blockedUser?: {
+    id: string;
+  };
+};
+
 export default function MatchesPage() {
   const router = useRouter();
   const [items, setItems] = useState<MatchItem[]>([]);
+  const [blockedIds, setBlockedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -37,17 +45,22 @@ export default function MatchesPage() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [blockingId, setBlockingId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadMatches();
+    loadPage();
   }, []);
 
-  async function loadMatches() {
+  async function loadPage() {
     try {
-      const res = await api.get('/matches/mine');
-      console.log('matches response:', res.data);
+      setLoading(true);
 
-      const raw = res.data;
+      const [matchesRes, blocksRes] = await Promise.all([
+        api.get('/matches/mine'),
+        api.get('/blocks'),
+      ]);
+
+      const raw = matchesRes.data;
       const list = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.data)
@@ -57,8 +70,20 @@ export default function MatchesPage() {
         : Array.isArray(raw?.data?.items)
         ? raw.data.items
         : [];
-
       setItems(list);
+
+      const blocksPayload = blocksRes.data?.data ?? blocksRes.data;
+      const blockList: BlockItem[] = Array.isArray(blocksPayload)
+        ? blocksPayload
+        : Array.isArray(blocksPayload?.items)
+        ? blocksPayload.items
+        : [];
+
+      setBlockedIds(
+        blockList
+          .map((item) => item.blockedUser?.id)
+          .filter((id): id is string => Boolean(id)),
+      );
     } catch (e) {
       console.error(e);
       alert('Failed to load matches');
@@ -74,6 +99,15 @@ export default function MatchesPage() {
     }
 
     router.push('/chats');
+  }
+
+  function openUserProfile(userId?: string) {
+    if (!userId) {
+      alert('User info missing');
+      return;
+    }
+
+    router.push(`/users/${userId}`);
   }
 
   function openReview(match: MatchItem) {
@@ -124,6 +158,32 @@ export default function MatchesPage() {
     }
   }
 
+  async function blockUser(userId: string, nickname: string) {
+    const ok = window.confirm(`${nickname} 을(를) 차단할까?`);
+    if (!ok) return;
+
+    try {
+      setBlockingId(userId);
+
+      await api.post('/blocks', {
+        blockedUserId: userId,
+      });
+
+      alert('User blocked');
+      await loadPage();
+      router.push('/blocks');
+    } catch (e: any) {
+      console.error(e);
+      const msg =
+        e?.response?.data?.message
+          ? JSON.stringify(e.response.data.message)
+          : 'Failed to block user';
+      alert(msg);
+    } finally {
+      setBlockingId(null);
+    }
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-slate-50">
@@ -150,6 +210,7 @@ export default function MatchesPage() {
         <div className="space-y-4">
           {items.map((match) => {
             const person = match.counterpart;
+            const isBlocked = person?.id ? blockedIds.includes(person.id) : false;
 
             return (
               <div
@@ -159,22 +220,42 @@ export default function MatchesPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-4">
-                      {person?.profileImageUrl ? (
-                        <img
-                          src={person.profileImageUrl}
-                          alt="profile"
-                          className="h-14 w-14 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-base font-semibold text-white">
-                          {person?.nickname?.slice(0, 1).toUpperCase() ?? 'M'}
-                        </div>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => openUserProfile(person?.id)}
+                        className="shrink-0"
+                      >
+                        {person?.profileImageUrl ? (
+                          <img
+                            src={person.profileImageUrl}
+                            alt="profile"
+                            className="h-14 w-14 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-base font-semibold text-white">
+                            {person?.nickname?.slice(0, 1).toUpperCase() ?? 'M'}
+                          </div>
+                        )}
+                      </button>
 
                       <div className="min-w-0">
-                        <h2 className="truncate text-lg font-semibold text-slate-900">
-                          {person?.nickname ?? 'Unknown user'}
-                        </h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openUserProfile(person?.id)}
+                            className="text-left"
+                          >
+                            <h2 className="truncate text-lg font-semibold text-slate-900 hover:underline">
+                              {person?.nickname ?? 'Unknown user'}
+                            </h2>
+                          </button>
+
+                          {isBlocked && (
+                            <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-600">
+                              Blocked
+                            </span>
+                          )}
+                        </div>
 
                         <p className="mt-1 text-sm text-slate-500">
                           {person?.type ?? 'User'}
@@ -238,6 +319,24 @@ export default function MatchesPage() {
                     >
                       ⭐ Write Review
                     </button>
+
+                    {isBlocked ? (
+                      <div className="mt-3 rounded-xl border border-slate-200 px-3 py-2 text-center text-xs font-medium text-slate-500">
+                        Already blocked
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (person?.id) {
+                            blockUser(person.id, person.nickname ?? 'User');
+                          }
+                        }}
+                        disabled={!person?.id || blockingId === person.id}
+                        className="mt-3 block w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                      >
+                        {blockingId === person?.id ? 'Blocking...' : 'Block'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

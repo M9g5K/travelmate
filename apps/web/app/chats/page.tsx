@@ -36,16 +36,27 @@ type ReportReason =
   | 'inappropriate_behavior'
   | 'other';
 
+type BlockItem = {
+  id: string;
+  blockedUser?: {
+    id: string;
+  };
+};
+
 export default function ChatsPage() {
   const router = useRouter();
   const [items, setItems] = useState<InboxItem[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [blockedIds, setBlockedIds] = useState<string[]>([]);
 
   const [reportOpen, setReportOpen] = useState(false);
   const [reportChatId, setReportChatId] = useState<string | null>(null);
-  const [reportTargetUserId, setReportTargetUserId] = useState<string | null>(null);
+  const [reportTargetUserId, setReportTargetUserId] = useState<string | null>(
+    null,
+  );
   const [reportTargetName, setReportTargetName] = useState('');
-  const [reportReason, setReportReason] = useState<ReportReason>('harassment');
+  const [reportReason, setReportReason] =
+    useState<ReportReason>('harassment');
   const [reportDetail, setReportDetail] = useState('');
   const [reporting, setReporting] = useState(false);
 
@@ -53,13 +64,12 @@ export default function ChatsPage() {
 
   useEffect(() => {
     loadChats();
+    loadBlocks();
   }, []);
 
   async function loadChats() {
     try {
       const res = await api.get('/chats/mine?take=20');
-      console.log('chats response:', res.data);
-
       const payload = res.data?.data ?? res.data;
       const list = Array.isArray(payload)
         ? payload
@@ -74,12 +84,43 @@ export default function ChatsPage() {
     }
   }
 
+  async function loadBlocks() {
+    try {
+      const res = await api.get('/blocks');
+      const payload = res.data?.data ?? res.data;
+      const list: BlockItem[] = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.items)
+        ? payload.items
+        : [];
+
+      setBlockedIds(
+        list
+          .map((item) => item.blockedUser?.id)
+          .filter((id): id is string => Boolean(id)),
+      );
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   function formatTime(value?: string) {
     if (!value) return '';
     return new Date(value).toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
     });
+  }
+
+  function openUserProfile(e: React.MouseEvent, userId?: string) {
+    e.stopPropagation();
+
+    if (!userId) {
+      alert('User info missing');
+      return;
+    }
+
+    router.push(`/users/${userId}`);
   }
 
   function openReportModal(chat: InboxItem) {
@@ -138,7 +179,7 @@ export default function ChatsPage() {
       });
 
       alert('User blocked');
-      await loadChats();
+      await Promise.all([loadChats(), loadBlocks()]);
       router.push('/blocks');
     } catch (e: any) {
       console.error(e);
@@ -178,6 +219,7 @@ export default function ChatsPage() {
             const country = person?.country;
             const languages = person?.languages ?? [];
             const profileImageUrl = person?.profileImageUrl ?? null;
+            const isBlocked = person?.id ? blockedIds.includes(person.id) : false;
 
             return (
               <div
@@ -188,22 +230,42 @@ export default function ChatsPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-4">
-                      {profileImageUrl ? (
-                        <img
-                          src={profileImageUrl}
-                          alt="profile"
-                          className="h-14 w-14 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-base font-semibold text-white">
-                          {nickname.slice(0, 1).toUpperCase()}
-                        </div>
-                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => openUserProfile(e, person?.id)}
+                        className="shrink-0"
+                      >
+                        {profileImageUrl ? (
+                          <img
+                            src={profileImageUrl}
+                            alt="profile"
+                            className="h-14 w-14 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-base font-semibold text-white">
+                            {nickname.slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
+                      </button>
 
                       <div className="min-w-0 flex-1">
-                        <h2 className="truncate text-lg font-semibold text-slate-900">
-                          {nickname}
-                        </h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => openUserProfile(e, person?.id)}
+                            className="text-left"
+                          >
+                            <h2 className="truncate text-lg font-semibold text-slate-900 hover:underline">
+                              {nickname}
+                            </h2>
+                          </button>
+
+                          {isBlocked && (
+                            <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-600">
+                              Blocked
+                            </span>
+                          )}
+                        </div>
 
                         <p className="mt-1 text-sm text-slate-500">
                           {type}
@@ -274,19 +336,25 @@ export default function ChatsPage() {
                         Report
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (person?.id) {
-                            blockUser(person.id, nickname);
-                          }
-                        }}
-                        disabled={!person?.id || blockingId === person.id}
-                        className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-                      >
-                        {blockingId === person?.id ? 'Blocking...' : 'Block'}
-                      </button>
+                      {isBlocked ? (
+                        <div className="rounded-xl border border-slate-200 px-3 py-2 text-center text-xs font-medium text-slate-500">
+                          Already blocked
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (person?.id) {
+                              blockUser(person.id, nickname);
+                            }
+                          }}
+                          disabled={!person?.id || blockingId === person.id}
+                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                        >
+                          {blockingId === person?.id ? 'Blocking...' : 'Block'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -1,17 +1,36 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BlocksService } from '../blocks/blocks.service';
 
 @Injectable()
 export class MatchesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private blocksService: BlocksService,
+  ) {}
 
   async getMine(userId: string) {
+    const hiddenUserIds = await this.blocksService.getHiddenUserIds(userId);
+
     const matches = await this.prisma.match.findMany({
       where: {
-        OR: [
-          { travelerId: userId },
-          { localId: userId },
-        ],
+        OR: [{ travelerId: userId }, { localId: userId }],
+        ...(hiddenUserIds.length > 0
+          ? {
+              AND: [
+                {
+                  travelerId: {
+                    notIn: hiddenUserIds,
+                  },
+                },
+                {
+                  localId: {
+                    notIn: hiddenUserIds,
+                  },
+                },
+              ],
+            }
+          : {}),
       },
       orderBy: {
         createdAt: 'desc',
@@ -75,13 +94,28 @@ export class MatchesService {
   }
 
   async getById(matchId: string, userId: string) {
+    const hiddenUserIds = await this.blocksService.getHiddenUserIds(userId);
+
     const match = await this.prisma.match.findFirst({
       where: {
         id: matchId,
-        OR: [
-          { travelerId: userId },
-          { localId: userId },
-        ],
+        OR: [{ travelerId: userId }, { localId: userId }],
+        ...(hiddenUserIds.length > 0
+          ? {
+              AND: [
+                {
+                  travelerId: {
+                    notIn: hiddenUserIds,
+                  },
+                },
+                {
+                  localId: {
+                    notIn: hiddenUserIds,
+                  },
+                },
+              ],
+            }
+          : {}),
       },
       include: {
         request: true,

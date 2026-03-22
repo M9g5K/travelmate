@@ -31,8 +31,8 @@ export class RequestsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get()
-  async listActive() {
-    const list = await this.requests.listActiveForLocals();
+  async listActive(@Req() req: any) {
+    const list = await this.requests.listActiveForLocals(req.user.userId);
     return { ok: true, data: list };
   }
 

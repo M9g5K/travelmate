@@ -1,13 +1,14 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
-  Put,
+  Param,
   Post,
+  Put,
   UploadedFile,
   UseGuards,
   UseInterceptors,
-  BadRequestException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -60,7 +61,10 @@ export class UsersController {
       }),
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith('image/')) {
-          return cb(new BadRequestException('Only image files are allowed'), false);
+          return cb(
+            new BadRequestException('Only image files are allowed'),
+            false,
+          );
         }
         cb(null, true);
       },
@@ -85,6 +89,15 @@ export class UsersController {
 
     return {
       data: updated,
+    };
+  }
+
+  @Get('users/:id')
+  async getUser(@Param('id') id: string) {
+    const user = await this.usersService.findUserById(id);
+
+    return {
+      data: user,
     };
   }
 }

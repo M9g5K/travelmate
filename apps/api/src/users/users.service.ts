@@ -120,4 +120,26 @@ export class UsersService {
       },
     });
   }
+
+  async findUserById(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        nickname: true,
+        type: true,
+        country: true,
+        languages: true,
+        bio: true,
+        profileImageUrl: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
 }

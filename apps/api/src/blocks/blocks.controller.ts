@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { BlocksService } from './blocks.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -24,6 +24,18 @@ export class BlocksController {
 
     return {
       data: blocks,
+    };
+  }
+
+  @Delete(':blockedUserId')
+  async remove(
+    @CurrentUser() user: any,
+    @Param('blockedUserId') blockedUserId: string,
+  ) {
+    const removed = await this.blocksService.remove(user.userId, blockedUserId);
+
+    return {
+      data: removed,
     };
   }
 }
