@@ -21,9 +21,15 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: ['http://localhost:3001'],
-    credentials: true,
-  });
+      origin: [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://travelmate-production-3ac4.up.railway.app',
+      ],
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    });
 
   const config = new DocumentBuilder()
     .setTitle('Travel Local API')
