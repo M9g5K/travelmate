@@ -25,6 +25,7 @@ async function bootstrap() {
         'http://localhost:3000',
         'http://localhost:3001',
         'https://travelmate-production-3ac4.up.railway.app',
+        'https://travelmate-bice-eight.vercel.app',
       ],
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
