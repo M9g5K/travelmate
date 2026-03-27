@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { api } from '@/lib/api';
 import { token } from '@/lib/token';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function LoginPage() {
       token.set(accessToken);
       router.push('/');
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? err?.message ?? 'Login failed');
+      setError(err?.response?.data?.message ?? err?.message ?? 'Failed to sign in. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -128,13 +129,19 @@ export default function LoginPage() {
 
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Demo account
+                  Test account
                 </p>
                 <p className="mt-2 text-sm text-slate-700">
-                  traveler@example.com
+                  If you do not have an account yet, please create one first.
                 </p>
-                <p className="text-sm text-slate-700">123456</p>
               </div>
+
+              <p className="mt-6 text-center text-sm text-slate-500">
+                Don&apos;t have an account?{' '}
+                <Link href="/signup" className="font-medium text-blue-600 hover:underline">
+                  Sign up
+                </Link>
+              </p>
             </div>
           </section>
         </div>
