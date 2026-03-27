@@ -2,7 +2,7 @@ import axios from 'axios';
 import { token } from './token';
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: 'https://travelmate-production-3ac4.up.railway.app',
 });
 
 api.interceptors.request.use((config) => {
