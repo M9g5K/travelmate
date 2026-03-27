@@ -46,12 +46,16 @@ const LANGUAGE_OPTIONS = [
   'French',
 ];
 
+const PASSWORD_REGEX =
+  /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d])[A-Za-z\d\S]{8,}$/;
+
 export default function SignupPage() {
   const router = useRouter();
 
   const [type, setType] = useState<'TRAVELER' | 'LOCAL'>('TRAVELER');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [nickname, setNickname] = useState('');
   const [country, setCountry] = useState('');
   const [languages, setLanguages] = useState<string[]>([]);
@@ -70,11 +74,27 @@ export default function SignupPage() {
     item.toLowerCase().includes(languageSearch.toLowerCase().trim()),
   );
 
+  const isPasswordValid = PASSWORD_REGEX.test(password);
+  const isConfirmPasswordMatched =
+    confirmPassword.length > 0 && password === confirmPassword;
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
 
-    if (!email || !password || !nickname) {
-      alert('Email, password, and nickname are required.');
+    if (!email || !password || !confirmPassword || !nickname) {
+      alert('Email, password, confirm password, and nickname are required.');
+      return;
+    }
+
+    if (!PASSWORD_REGEX.test(password)) {
+      alert(
+        'Password must be at least 8 characters long and include letters, numbers, and special characters.',
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      alert('Passwords do not match.');
       return;
     }
 
@@ -171,36 +191,78 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-2xl border px-4 py-3"
-            />
+            <div>
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-2xl border px-4 py-3"
+              />
+            </div>
 
-            <input
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-2xl border px-4 py-3"
-            />
+            <div>
+              <input
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-2xl border px-4 py-3"
+              />
+              <p
+                className={`mt-2 text-xs ${
+                  password.length === 0
+                    ? 'text-slate-400'
+                    : isPasswordValid
+                    ? 'text-green-600'
+                    : 'text-red-500'
+                }`}
+              >
+                Password must be at least 8 characters and include letters,
+                numbers, and special characters.
+              </p>
+            </div>
 
-            <input
-              placeholder="Enter your nickname"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              className="w-full rounded-2xl border px-4 py-3"
-            />
+            <div>
+              <input
+                type="password"
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full rounded-2xl border px-4 py-3"
+              />
+              {confirmPassword.length > 0 && (
+                <p
+                  className={`mt-2 text-xs ${
+                    isConfirmPasswordMatched ? 'text-green-600' : 'text-red-500'
+                  }`}
+                >
+                  {isConfirmPasswordMatched
+                    ? 'Passwords match.'
+                    : 'Passwords do not match.'}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <input
+                placeholder="Enter your nickname"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                className="w-full rounded-2xl border px-4 py-3"
+              />
+            </div>
 
             <div>
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-slate-700">
                   Country
                 </label>
-                <span className="text-xs text-slate-400">Search and select one</span>
+                <span className="text-xs text-slate-400">
+                  Search and select one
+                </span>
               </div>
+
               <input
                 type="text"
                 value={countrySearch}
@@ -208,6 +270,7 @@ export default function SignupPage() {
                 placeholder="Search countries"
                 className="mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-blue-500"
               />
+
               <div className="mt-2 grid max-h-56 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
                 {filteredCountries.map((item) => {
                   const selected = country === item.value;
@@ -227,6 +290,7 @@ export default function SignupPage() {
                     </button>
                   );
                 })}
+
                 {filteredCountries.length === 0 && (
                   <div className="col-span-full rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">
                     No countries found.
@@ -240,8 +304,11 @@ export default function SignupPage() {
                 <label className="text-sm font-medium text-slate-700">
                   Languages
                 </label>
-                <span className="text-xs text-slate-400">Search and select multiple</span>
+                <span className="text-xs text-slate-400">
+                  Search and select multiple
+                </span>
               </div>
+
               <input
                 type="text"
                 value={languageSearch}
@@ -249,6 +316,7 @@ export default function SignupPage() {
                 placeholder="Search languages"
                 className="mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-blue-500"
               />
+
               <div className="mt-2 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                 {filteredLanguages.map((item) => {
                   const selected = languages.includes(item);
@@ -273,29 +341,33 @@ export default function SignupPage() {
                     </button>
                   );
                 })}
+
                 {filteredLanguages.length === 0 && (
                   <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-2 text-sm text-slate-400">
                     No languages found.
                   </div>
                 )}
               </div>
+
               <p className="mt-2 text-xs text-slate-400">
                 You can select multiple languages.
               </p>
             </div>
 
-            <textarea
-              placeholder="Tell us about yourself"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              rows={4}
-              className="w-full rounded-2xl border px-4 py-3"
-            />
+            <div>
+              <textarea
+                placeholder="Tell us about yourself"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={4}
+                className="w-full rounded-2xl border px-4 py-3"
+              />
+            </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-2xl bg-blue-600 py-3 text-white"
+              className="w-full rounded-2xl bg-blue-600 py-3 text-white disabled:opacity-60"
             >
               {loading ? 'Signing up...' : 'Create account'}
             </button>
