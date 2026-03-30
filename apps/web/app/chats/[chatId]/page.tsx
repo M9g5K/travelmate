@@ -13,18 +13,56 @@ type Msg = {
   createdAt: string;
 };
 
+function getUserIdFromAccessToken(rawToken?: string | null): string | null {
+  if (!rawToken) return null;
+  try {
+    const parts = rawToken.split('.');
+    if (parts.length < 2) return null;
+    const payload = parts[1];
+    // base64url -> base64
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const json = JSON.parse(atob(padded));
+    // common keys: sub, userId, id
+    return String(json.sub ?? json.userId ?? json.id ?? '');
+  } catch {
+    return null;
+  }
+}
+
 export default function ChatRoomPage() {
   const params = useParams();
   const chatId = String(params.chatId);
   const router = useRouter();
 
+  const [meId, setMeId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!token.get()) router.push('/login');
+    const access = token.get();
+    if (!access) {
+      router.push('/login');
+      return;
+    }
+
+    // 1) Set meId immediately from JWT so alignment is correct even before /me resolves.
+    const fromJwt = getUserIdFromAccessToken(access);
+    if (fromJwt) setMeId(fromJwt);
+
+    // 2) Also load /me to confirm (and handle APIs that return userId instead of id).
+    (async () => {
+      try {
+        const res = await api.get('/me');
+        const me = res.data?.data;
+        const id = me?.id ?? me?.userId;
+        if (id) setMeId(String(id));
+      } catch (e) {
+        console.error(e);
+      }
+    })();
   }, [router]);
 
   async function loadMessages() {
@@ -109,8 +147,8 @@ export default function ChatRoomPage() {
           <div className="flex h-full flex-col">
             <div className="flex-1 overflow-y-auto bg-slate-50/70 px-4 py-5">
               <div className="space-y-4">
-                {msgs.map((m, idx) => {
-                  const mine = idx % 2 === 0;
+                {msgs.map((m) => {
+                  const mine = Boolean(meId) && String(m.senderId) === String(meId);
 
                   return (
                     <div
