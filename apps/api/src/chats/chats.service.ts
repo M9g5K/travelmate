@@ -5,12 +5,15 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlocksService } from '../blocks/blocks.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
 
 @Injectable()
 export class ChatsService {
   constructor(
     private prisma: PrismaService,
     private blocksService: BlocksService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async ensureNotBlocked(chatId: string, userId: string) {
@@ -72,13 +75,38 @@ export class ChatsService {
    * 메시지 전송(저장)
    */
   async sendMessage(chatId: string, senderId: string, content: string) {
-    await this.ensureChatMember(chatId, senderId);
-    await this.ensureNotBlocked(chatId, senderId);
+    // 권한/차단 체크 (sender 관점)
+    const chat = await this.ensureChatMember(chatId, senderId);
 
-    return this.prisma.message.create({
+    // 1) 메시지 저장
+    const msg = await this.prisma.message.create({
       data: { chatId, senderId, content },
       include: { sender: { select: { id: true, nickname: true, type: true } } },
     });
+
+    // 2) 상대방(receiver) 계산
+    const receiverUserId =
+      chat.match.travelerId === senderId ? chat.match.localId : chat.match.travelerId;
+
+    // 3) receiver가 sender를 차단한 상태면 알림 생성하지 않음
+    const receiverHiddenIds = await this.blocksService.getHiddenUserIds(
+      receiverUserId,
+    );
+    const receiverBlockedSender = receiverHiddenIds.includes(senderId);
+
+    if (!receiverBlockedSender) {
+      // 4) 알림 생성 (메시지 미리보기 포함)
+      const preview = content.length > 60 ? `${content.slice(0, 60)}…` : content;
+      await this.notifications.create({
+        userId: receiverUserId,
+        type: NotificationType.CHAT_MESSAGE,
+        title: `New message from ${msg.sender.nickname ?? 'Someone'}`,
+        body: preview || 'You received a new message.',
+        link: `/chats/${chatId}`,
+      });
+    }
+
+    return msg;
   }
 
   /**

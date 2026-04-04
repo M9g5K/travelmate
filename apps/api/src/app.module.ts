@@ -10,6 +10,8 @@ import { ChatsModule } from './chats/chats.module';
 import { ReportsModule } from './reports/reports.module';
 import { BlocksModule } from './blocks/blocks.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { NotificationsModule } from './notifications/notifications.module';
+
 
 import { TestGateway } from './test.gateway';
 
@@ -26,6 +28,7 @@ import { TestGateway } from './test.gateway';
     ReportsModule,
     BlocksModule,
     ReviewsModule,
+    NotificationsModule,
   ],
   providers: [TestGateway],
 })

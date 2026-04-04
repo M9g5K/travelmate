@@ -8,5 +8,6 @@ import { BlocksModule } from '../blocks/blocks.module';
   imports: [PrismaModule, BlocksModule],
   controllers: [ChatsController],
   providers: [ChatsService],
+  NotificationsModule,
 })
 export class ChatsModule {}

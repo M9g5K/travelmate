@@ -46,6 +46,8 @@ model User {
 
   reviewsWritten  Review[] @relation("ReviewsWritten")
   reviewsReceived Review[] @relation("ReviewsReceived")
+
+  notifications Notification[]
 }
 
 enum RequestStatus {
@@ -211,4 +213,25 @@ model Review {
   match      Match @relation(fields: [matchId], references: [id])
 
   @@unique([reviewerId, matchId])
+}
+
+enum NotificationType {
+  CHAT_MESSAGE
+  REQUEST_LIKED
+  MATCH_CREATED
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
 }
